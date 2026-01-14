@@ -219,10 +219,18 @@ function sapro_signals_shortcode($atts) {
 
         // Store current data (keyed by id)
         let signalsData = {};
-        let columns = [];
 
-        // Columns to exclude from display (internal fields)
-        const excludeColumns = ['id', 'created_at', 'updated_at'];
+        // Specific columns to display in order (as requested by client)
+        const displayColumns = [
+            { key: 'valid_dt', label: 'Valid DT' },
+            { key: 'symbol', label: 'Symbol' },
+            { key: 'signal_type', label: 'Signal Type' },
+            { key: 'entry_date', label: 'Entry Date' },
+            { key: 'entry_time', label: 'Entry Time' },
+            { key: 'entry_price', label: 'Entry Price' },
+            { key: 'stoploss_price', label: 'Stoploss Price' },
+            { key: 'pattern_id', label: 'Pattern ID' }
+        ];
 
         // Wait for Supabase to load
         function waitForSupabase(callback) {
@@ -249,9 +257,6 @@ function sapro_signals_shortcode($atts) {
                     if (error) throw error;
 
                     if (data && data.length > 0) {
-                        // Extract columns from first row
-                        columns = Object.keys(data[0]).filter(col => !excludeColumns.includes(col.toLowerCase()));
-
                         // Store data
                         data.forEach(row => {
                             signalsData[row.id] = row;
@@ -269,13 +274,9 @@ function sapro_signals_shortcode($atts) {
 
             // Render table headers
             function renderHeaders() {
-                if (columns.length === 0) return;
-
                 let headerHtml = '<tr>';
-                columns.forEach(col => {
-                    // Format column name for display
-                    const displayName = col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    headerHtml += `<th>${displayName}</th>`;
+                displayColumns.forEach(col => {
+                    headerHtml += `<th>${col.label}</th>`;
                 });
                 headerHtml += '</tr>';
                 tableHead.innerHTML = headerHtml;
@@ -306,8 +307,8 @@ function sapro_signals_shortcode($atts) {
                 let bodyHtml = '';
                 sortedData.forEach(row => {
                     bodyHtml += `<tr data-id="${row.id}">`;
-                    columns.forEach(col => {
-                        const value = row[col] !== null && row[col] !== undefined ? row[col] : '-';
+                    displayColumns.forEach(col => {
+                        const value = row[col.key] !== null && row[col.key] !== undefined ? row[col.key] : '-';
                         bodyHtml += `<td>${escapeHtml(String(value))}</td>`;
                     });
                     bodyHtml += '</tr>';
@@ -349,11 +350,6 @@ function sapro_signals_shortcode($atts) {
                             switch (payload.eventType) {
                                 case 'INSERT':
                                     signalsData[payload.new.id] = payload.new;
-                                    // Update columns if new columns detected
-                                    const newCols = Object.keys(payload.new).filter(col => !excludeColumns.includes(col.toLowerCase()));
-                                    if (newCols.length > columns.length) {
-                                        columns = newCols;
-                                    }
                                     renderTable();
                                     highlightRow(payload.new.id);
                                     break;
